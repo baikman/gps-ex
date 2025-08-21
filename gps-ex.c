@@ -2,6 +2,7 @@
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
 #include "hardware/uart.h"
+#include "minmea.h"
 
 // I2C defines
 // This example will use I2C0 on GPIO8 (SDA) and GPIO9 (SCL) running at 400KHz.
@@ -20,10 +21,9 @@
 #define UART_TX_PIN 4
 #define UART_RX_PIN 5
 
+char line[MINMEA_MAX_SENTENCE_LENGTH];
 
-
-int main()
-{
+int main(){
     stdio_init_all();
 
     // I2C Initialisation. Using it at 400Khz.
@@ -35,23 +35,51 @@ int main()
     gpio_pull_up(I2C_SCL);
     // For more examples of I2C use see https://github.com/raspberrypi/pico-examples/tree/master/i2c
 
-    // Set up our UART
-    uart_init(UART_ID, BAUD_RATE);
-    // Set the TX and RX pins by using the function select on the GPIO
-    // Set datasheet for more information on function select
+
+    uart_init(UART_ID, 9600);
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
-    
-    // Use some the various UART functions to send out data
-    // In a default system, printf will also output via the default UART
-    
-    // Send out a string, with CR/LF conversions
-    uart_puts(UART_ID, " Hello, UART!\n");
-    
-    // For more examples of UART use see https://github.com/raspberrypi/pico-examples/tree/master/uart
+
+    int idx = 0;
 
     while (true) {
-        printf("Hello, world!\n");
-        sleep_ms(1000);
+        if (uart_is_readable(UART_ID)) {
+            char c = uart_getc(UART_ID);
+            if (c == '\n') {
+                line[idx] = '\0';
+                idx = 0;
+                
+                printf("NMEA: %s\n", line);
+                if (minmea_sentence_id(line, false) == MINMEA_SENTENCE_RMC) {
+                    struct minmea_sentence_rmc frame;
+                    if (minmea_parse_rmc(&frame, line)) {
+                        printf("Lat: %f, Lon: %f\n",
+                               minmea_tocoord(&frame.latitude),
+                               minmea_tocoord(&frame.longitude));
+                    }
+                }
+            } else if (idx < sizeof(line) - 1) {
+                line[idx++] = c;
+            }
+        }
     }
+    // Set up our UART
+    // uart_init(UART_ID, BAUD_RATE);
+    // // Set the TX and RX pins by using the function select on the GPIO
+    // // Set datasheet for more information on function select
+    // gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
+    // gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
+    
+    // // Use some the various UART functions to send out data
+    // // In a default system, printf will also output via the default UART
+    
+    // // Send out a string, with CR/LF conversions
+    // uart_puts(UART_ID, " Hello, UART!\n");
+    
+    // // For more examples of UART use see https://github.com/raspberrypi/pico-examples/tree/master/uart
+
+    // while (true) {
+    //     printf("Hello, world!\n");
+    //     sleep_ms(1000);
+    // }
 }

@@ -35,14 +35,16 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(gps-ex gps-ex.c )
+add_executable(gps-ex gps-ex.c minmea.c)
 
 pico_set_program_name(gps-ex "gps-ex")
 pico_set_program_version(gps-ex "0.1")
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(gps-ex 0)
-pico_enable_stdio_usb(gps-ex 0)
+pico_enable_stdio_usb(gps-ex 1)
+
+target_compile_definitions(gps-ex PRIVATE timegm=mktime)
 
 # Add the standard library to the build
 target_link_libraries(gps-ex
